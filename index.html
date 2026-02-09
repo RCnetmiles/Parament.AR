@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Paramentation VR Trainer</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- A-Frame Library -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        background-color: #0f172a; /* Slate 900 */
+        color: white;
+        overscroll-behavior: none;
+        /* Fix for mobile height issues */
+        height: 100vh;
+        height: 100dvh; 
+      }
+      
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1); 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3); 
+        border-radius: 4px;
+      }
+
+      .animate-fade-in {
+        animation: fadeIn 0.5s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Joystick specific styles */
+      #joystick-zone {
+        touch-action: none;
+      }
+      
+      /* Utility to hide scrollbar but keep functionality if needed */
+      .no-scrollbar::-webkit-scrollbar {
+          display: none;
+      }
+      .no-scrollbar {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
+  }
+}
+</script>
+</head>
+<body class="flex flex-col overflow-hidden bg-slate-900">
+
+    <!-- HEADER -->
+    <header class="w-full p-3 md:p-4 flex justify-between items-center bg-slate-900/90 backdrop-blur border-b border-white/10 z-50 shrink-0 min-h-[60px] shadow-md">
+        <div>
+            <h1 class="text-lg md:text-xl font-bold tracking-tighter text-blue-400 whitespace-nowrap">BIO<span class="text-white">SAFETY</span> VR</h1>
+            <p id="mode-indicator" class="text-[10px] md:text-xs text-slate-400 font-mono uppercase tracking-wide">Modo: Inicio</p>
+        </div>
+        <!-- Reset Button -->
+        <button onclick="window.location.reload()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded border border-white/20 transition-colors">
+            Reiniciar
+        </button>
+    </header>
+
+    <!-- FEEDBACK OVERLAY (Modal) -->
+    <div id="feedback-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div id="feedback-box" class="max-w-md w-full p-6 rounded-xl border-2 shadow-2xl bg-blue-900/95 border-blue-500 text-white relative">
+            <div id="feedback-loading" class="hidden flex flex-col items-center space-y-4">
+                <div class="w-10 h-10 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-slate-300 font-mono text-sm animate-pulse">Verificando...</p>
+            </div>
+            <div id="feedback-content">
+                <h3 id="feedback-title" class="text-xl font-bold mb-4 flex items-center gap-2">ℹ️ Info</h3>
+                <div class="max-h-[50vh] overflow-y-auto pr-2 mb-6">
+                    <p id="feedback-message" class="text-lg leading-relaxed whitespace-pre-line text-slate-100"></p>
+                </div>
+                <button id="feedback-action-btn" class="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg font-bold text-lg transition-colors uppercase tracking-wide shadow-lg active:scale-95 transform">
+                    Continuar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INSPECTION INTRO MODAL -->
+    <div id="inspection-intro-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
+        <div class="max-w-lg w-full bg-slate-800 p-8 rounded-xl border border-slate-600 shadow-2xl relative">
+            <h2 class="text-2xl font-bold text-blue-400 mb-4 flex items-center gap-2">
+                <span class="text-3xl">🔍</span> Inspeção de Laboratório
+            </h2>
+            <div class="space-y-4 text-slate-200 leading-relaxed max-h-[60vh] overflow-y-auto">
+                <p>Bem-vindo à Galeria Virtual de Biossegurança.</p>
+                <div class="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
+                    <h3 class="font-bold text-white mb-2">Instruções:</h3>
+                    <ul class="list-disc pl-5 space-y-2 text-sm">
+                        <li>Use o <strong>Joystick</strong> (canto inferior esquerdo) para caminhar.</li>
+                        <li>Arraste na tela para <strong>olhar ao redor</strong>.</li>
+                        <li><strong>Clique/Toque nos quadros</strong> para identificar Riscos Biológicos.</li>
+                        <li>Encontre todos os riscos para avançar.</li>
+                    </ul>
+                </div>
+            </div>
+            <button onclick="startGameInspection()" class="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-lg transition-transform transform active:scale-95 shadow-lg">
+                Começar Inspeção
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <main id="main-container" class="flex-1 relative w-full h-full overflow-hidden bg-slate-900">
+        
+        <!-- INTRO SCREEN -->
+        <section id="screen-intro" class="absolute inset-0 overflow-y-auto flex flex-col items-center justify-center p-6 text-center animate-fade-in pb-20">
+            <div class="w-24 h-24 md:w-32 md:h-32 bg-blue-600 rounded-full flex items-center justify-center mb-6 shadow-blue-500/50 shadow-2xl shrink-0 mt-10 md:mt-0">
+                <span class="text-5xl md:text-6xl">🥼</span>
+            </div>
+            <h2 class="text-3xl md:text-5xl font-bold mb-6 text-white tracking-tight">Paramentar & Desparamentar</h2>
+            
+            <div class="bg-slate-800/50 p-6 rounded-xl border border-slate-700 text-left space-y-4 mb-8 max-w-2xl w-full shadow-xl backdrop-blur-sm">
+                <p class="text-lg text-slate-200">
+                    Treinamento virtual de procedimentos de segurança laboratorial.
+                </p>
+                
+                <div class="space-y-4 mt-4">
+                    <h3 class="font-bold text-blue-400 text-lg border-b border-slate-600 pb-2">Etapas:</h3>
+                    
+                    <div class="space-y-3">
+                        <div class="flex flex-col gap-1">
+                            <strong class="text-white">1. Paramentação</strong>
+                            <p class="text-slate-400 text-sm">Ordem correta de colocação dos EPIs.</p>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <strong class="text-white">2. Inspeção 3D</strong>
+                            <p class="text-slate-400 text-sm">Identificação de riscos em ambiente virtual.</p>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <strong class="text-white">3. Desparamentação</strong>
+                            <p class="text-slate-400 text-sm">Remoção segura dos equipamentos.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="setPhase('DONNING')" class="px-12 py-4 bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/50 rounded-lg font-bold text-xl shadow-lg transition-transform hover:scale-105 mb-8">
+                Iniciar Treinamento
+            </button>
+        </section>
+
+        <!-- PPE SCREEN (Used for both DONNING and DOFFING) -->
+        <section id="screen-ppe" class="hidden absolute inset-0 overflow-y-auto flex flex-col p-2 md:p-4 gap-4 max-w-6xl mx-auto w-full">
+            <!-- Header Info -->
+            <div class="bg-slate-800/90 p-4 rounded-xl border border-slate-600 shadow-lg shrink-0 z-10">
+                <h2 id="ppe-title" class="text-xl md:text-2xl font-bold text-white mb-1">
+                    Desafio de Paramentação
+                </h2>
+                <p class="text-sm text-slate-300">
+                    Toque nos itens abaixo para montar a sequência correta.
+                </p>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-4 flex-1 pb-4">
+                <!-- Sequence Target -->
+                <div class="order-1 lg:order-2 lg:w-2/3 flex flex-col shrink-0">
+                    <div class="bg-slate-800/50 flex-1 rounded-xl border-2 border-dashed border-slate-600 p-4 relative flex flex-col min-h-[160px]">
+                        <h3 class="text-sm font-semibold text-white mb-2 flex justify-between items-center">
+                            <span>Sua Sequência</span>
+                            <span id="sequence-count" class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">
+                                0 passos
+                            </span>
+                        </h3>
+
+                        <div id="sequence-container" class="flex flex-row flex-wrap gap-2 content-start">
+                            <!-- Items will be injected here -->
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button id="validate-btn" onclick="validateSequence()" disabled class="w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-lg transition-all">
+                            Verificar Sequência
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Available Items -->
+                <div class="order-2 lg:order-1 lg:w-1/3 bg-slate-800/80 p-4 rounded-xl border border-slate-700 flex-1">
+                    <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-700 pb-2">
+                        Itens Disponíveis
+                    </h3>
+                    <div id="available-items" class="grid grid-cols-3 gap-2">
+                        <!-- Buttons injected via JS -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- INSPECTION SCREEN (3D) -->
+        <section id="screen-inspection" class="hidden absolute inset-0 bg-black">
+            <!-- A-Frame Scene Container -->
+            <div id="aframe-container" class="w-full h-full absolute inset-0 z-0"></div>
+
+            <!-- Skip Button (Visible after Intro) -->
+            <div id="skip-inspection-btn" class="absolute bottom-8 right-8 z-30 hidden">
+                <button onclick="finishInspection()" class="px-6 py-3 bg-slate-700/80 hover:bg-slate-600 text-white border border-slate-500 rounded-lg font-bold shadow-lg backdrop-blur">
+                    Pular Inspeção &rarr;
+                </button>
+            </div>
+
+            <!-- Joystick Overlay -->
+            <div class="absolute top-16 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur px-4 py-2 rounded-full text-xs pointer-events-none text-center w-max max-w-[90%] text-white z-20 border border-white/10">
+                Arraste no círculo para andar • Gire a tela para olhar • Toque nos quadros
+            </div>
+
+            <div id="joystick-zone" class="absolute bottom-8 left-8 z-30 w-32 h-32 rounded-full bg-white/10 border-2 border-white/30 backdrop-blur-sm shadow-xl">
+                <div id="joystick-handle" class="absolute w-12 h-12 rounded-full bg-blue-500/90 shadow-lg pointer-events-none transition-transform duration-75 border-2 border-white/50"
+                     style="top: 50%; left: 50%; margin-top: -1.5rem; margin-left: -1.5rem;">
+                </div>
+            </div>
+        </section>
+
+        <!-- SUMMARY SCREEN -->
+        <section id="screen-summary" class="hidden absolute inset-0 overflow-y-auto flex flex-col items-center justify-center p-6 text-center animate-fade-in pb-20">
+            <h2 class="text-3xl md:text-5xl font-bold mb-6 text-green-400">Treinamento Concluído!</h2>
+            <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl mb-8 w-full max-w-md">
+                <p class="text-slate-400 mb-2">Parabéns!</p>
+                <p class="text-xl text-white mb-6">Você completou todas as etapas do treinamento com sucesso.</p>
+                
+                <div class="border-t border-slate-600 pt-6">
+                    <p class="text-slate-300 text-sm mb-4">
+                        Fonte das diretrizes:
+                    </p>
+                    <a href="https://portaldeboaspraticas.iff.fiocruz.br/wp-content/uploads/2020/04/3723_info4_covid19_sequencia_correta_paramentacao_27-03_sus.pdf"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       class="inline-block px-4 py-3 bg-blue-900/50 hover:bg-blue-800 text-blue-200 rounded-lg border border-blue-700/50 transition-colors text-sm w-full font-semibold">
+                       Portal de Boas Práticas (Fiocruz) ↗
+                    </a>
+                </div>
+            </div>
+            <button onclick="window.location.reload()" class="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg text-lg">
+                Reiniciar Treinamento
+            </button>
+        </section>
+
+    </main>
+
+    <!-- LOGIC SCRIPT -->
+    <script>
+        // --- CONSTANTS ---
+        const PPE_ITEMS = {
+            alcohol: { id: 'alcohol', name: 'Higienizar Mãos', icon: '🧴' },
+            jaleco: { id: 'jaleco', name: 'Jaleco/Avental', icon: '🥼' },
+            mascara: { id: 'mascara', name: 'Máscara', icon: '😷' },
+            oculos: { id: 'oculos', name: 'Óculos', icon: '🥽' },
+            luvas: { id: 'luvas', name: 'Luvas', icon: '🧤' },
+            touca: { id: 'touca', name: 'Touca', icon: '🧢' },
+        };
+
+        const CORRECT_DONNING_ORDER = ['alcohol', 'jaleco', 'mascara', 'oculos', 'touca', 'alcohol', 'luvas'];
+        const CORRECT_DOFFING_ORDER = ['luvas', 'alcohol', 'jaleco', 'alcohol', 'touca', 'oculos', 'mascara', 'alcohol'];
+
+        const GALLERY_ITEMS = [
+            { 
+                id: 'mouth_pipetting', position: '-3 1.2 -3', type: 'hazard',
+                description: 'Pipetagem com a boca: Risco de ingestão de patógenos ou químicos. Use peras ou pipetadores automáticos.',
+                imageUrl: 'https://pbs.twimg.com/media/FoSDF8JWIAA2txW.jpg', width: 2, height: 1.5
+            },
+            { 
+                id: 'uncapped_needle', position: '3 1.2 -2', type: 'hazard',
+                description: 'Descarte incorreto: Agulhas devem ir para o coletor rígido (Descarpack) imediatamente.',
+                imageUrl: 'https://lh3.googleusercontent.com/gg/AMW1TPqSjlPb1TS66VKD8ZcxMiuClZBZwLKPKpJ437C1ecpBLCgFUHA744u-aAZMscRJqizq9Oae56HfusBtm02iN_PZmBfdoQoXEQ4bhsDwtEf1V3Fn9HUKIQ-zAvRJKk_RZsEqdSLveJj2hYKPWG-Rt4qF4kTG0jtY8bl4LTojDicq2A9G6aKN=s1024-rj-mp2', width: 2, height: 1.5
+            },
+            { 
+                id: 'spill_floor', position: '-2 0.8 2', type: 'hazard',
+                description: 'Derramamento no chão: Risco de queda e contaminação. Deve ser isolado e limpo imediatamente.',
+                imageUrl: 'https://lh3.googleusercontent.com/gg/AMW1TPqNprDTCKtEhInQ00wWCduXkCeDm9uL53pV4Lyz04o1n9-ukJgm1fBpYnna3MqH_Jdum1l2gKALMhrBdrAoAg_HPz3AFqCa3ydqvdBIIwo1H4FbJD2qhMoo1dF9eL5DDK9ykR7Iz6x6ltJ2EVEXzmz7LQRUvYRmM4x4oNAdvn1n8X_lZQJf=s1024-rj-mp2', width: 2.2, height: 1.4
+            },
+            { 
+                id: 'food_lab', position: '0 1.2 4', type: 'hazard',
+                description: 'Alimento no laboratório: Proibido comer ou beber para evitar contaminação cruzada.',
+                imageUrl: 'https://lh3.googleusercontent.com/gg/AMW1TPoD3EYn_Mw4KGnRT_WXiT2bw7JzCsOOkQ4uBEr5nkCe0UdYCP8xV2R0wIv3bmtmO6vWtfZYmIj3qJOXT6f-v1oSIjj__00SXzXheVcZsS0FVsfPN6vmld8U7kvl_qamgAz2DmLXgD2vA_udTKbZ05ll7S2u6kCXD_lZ0vmrcYfQqxR_3_mT=s1024-rj-mp2', width: 2, height: 1.5
+            },
+            { 
+                id: 'labeled_bottle', position: '2 1.2 2', type: 'safe',
+                description: 'Armazenamento correto: Frasco rotulado e fechado. Item seguro.',
+                imageUrl: 'https://lh4.googleusercontent.com/proxy/EOXcP4TV7-XA53_rrM8ViWikRDGJjbNr7gueUVPfWTh3U3YowmOBXXYW90Z3PHtPqMqI8OG4Pm2A8zoi6Myqa1p6da12GrKahqjdPhLpEZRhjNrxEECkpNcF', width: 1.5, height: 2
+            },
+            { 
+                id: 'clean_bench', position: '0 1.2 -4', type: 'safe',
+                description: 'Bancada organizada: Reduz riscos de acidentes. Item seguro.',
+                imageUrl: 'https://i.ytimg.com/vi/Ulr277AfnkY/maxresdefault.jpg', width: 2.5, height: 1.4
+            },
+            { 
+                id: 'well_equipped', position: '4 0.8 0', type: 'safe',
+                description: 'Uso de EPIs: Profissional protegido. Item seguro.',
+                imageUrl: 'https://cdn.prod.website-files.com/64aea50e0c61eb6dce9728b7/64f8e185cf47b28cecc78232_20.png', width: 2, height: 2
+            }
+        ];
+
+        // --- STATE ---
+        let state = {
+            phase: 'INTRO',
+            sequence: [],
+            foundHazards: [],
+            pendingAction: null
+        };
+
+        // --- DOM ELEMENTS ---
+        const els = {
+            screens: {
+                intro: document.getElementById('screen-intro'),
+                ppe: document.getElementById('screen-ppe'),
+                inspection: document.getElementById('screen-inspection'),
+                summary: document.getElementById('screen-summary'),
+            },
+            main: document.getElementById('main-container'),
+            modeIndicator: document.getElementById('mode-indicator'),
+            ppeTitle: document.getElementById('ppe-title'),
+            sequenceContainer: document.getElementById('sequence-container'),
+            sequenceCount: document.getElementById('sequence-count'),
+            availableItems: document.getElementById('available-items'),
+            validateBtn: document.getElementById('validate-btn'),
+            feedback: {
+                modal: document.getElementById('feedback-modal'),
+                box: document.getElementById('feedback-box'),
+                loading: document.getElementById('feedback-loading'),
+                content: document.getElementById('feedback-content'),
+                title: document.getElementById('feedback-title'),
+                message: document.getElementById('feedback-message'),
+                btn: document.getElementById('feedback-action-btn')
+            },
+            inspectionModal: document.getElementById('inspection-intro-modal'),
+            skipInspectionBtn: document.getElementById('skip-inspection-btn'),
+            joystick: {
+                zone: document.getElementById('joystick-zone'),
+                handle: document.getElementById('joystick-handle')
+            },
+            aframeContainer: document.getElementById('aframe-container')
+        };
+
+        // --- NAVIGATION LOGIC ---
+        function setPhase(phase) {
+            state.phase = phase;
+            state.sequence = []; // Reset sequence
+            state.pendingAction = null; // Reset actions
+            
+            // Hide all screens
+            Object.values(els.screens).forEach(el => el.classList.add('hidden'));
+            
+            // Text Updates
+            let modeText = 'Inicio';
+            if (phase === 'DONNING') {
+                modeText = 'Paramentação';
+                els.screens.ppe.classList.remove('hidden');
+                els.ppeTitle.innerText = "Desafio de Paramentação";
+                renderPPE();
+            } else if (phase === 'DOFFING') {
+                modeText = 'Desparamentação';
+                els.screens.ppe.classList.remove('hidden');
+                els.ppeTitle.innerText = "Desafio de Desparamentação";
+                renderPPE();
+            } else if (phase === 'INSPECTION') {
+                modeText = 'Inspeção 3D';
+                els.screens.inspection.classList.remove('hidden');
+                els.inspectionModal.classList.remove('hidden'); 
+                els.skipInspectionBtn.classList.add('hidden');
+                initAFrame();
+            } else if (phase === 'SUMMARY') {
+                modeText = 'Conclusão';
+                els.screens.summary.classList.remove('hidden');
+            } else {
+                els.screens.intro.classList.remove('hidden');
+            }
+            
+            els.modeIndicator.innerText = `Modo: ${modeText}`;
+        }
+
+        // --- PPE LOGIC ---
+        function renderPPE() {
+            // Render Available Items
+            els.availableItems.innerHTML = Object.values(PPE_ITEMS).map(item => `
+                <button onclick="addToSequence('${item.id}')" class="flex flex-col items-center justify-center p-2 bg-slate-700 hover:bg-slate-600 rounded-lg border border-slate-600 active:bg-blue-800 transition-colors h-24">
+                    <span class="text-3xl mb-1">${item.icon}</span>
+                    <span class="text-xs font-bold text-slate-200 text-center leading-tight">${item.name}</span>
+                </button>
+            `).join('');
+
+            // Render Sequence Status
+            els.sequenceCount.innerText = `${state.sequence.length} passos`;
+            els.validateBtn.disabled = state.sequence.length === 0;
+
+            if (state.sequence.length === 0) {
+                els.sequenceContainer.innerHTML = '<div class="flex-1 flex items-center justify-center text-slate-500 italic text-sm w-full h-full min-h-[100px]">Linha do tempo vazia.</div>';
+                return;
+            }
+
+            els.sequenceContainer.innerHTML = state.sequence.map((itemId, index) => {
+                const item = PPE_ITEMS[itemId];
+                return `
+                    <div class="relative group animate-fade-in mb-2 mr-2">
+                        <div class="absolute -top-2 -left-2 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-md z-10 border-2 border-slate-800">${index + 1}</div>
+                        <div class="w-20 h-24 bg-slate-700 rounded-lg flex flex-col items-center justify-center p-1 border border-slate-500 shadow-sm relative">
+                            <span class="text-2xl mb-1">${item.icon}</span>
+                            <span class="text-[10px] text-center leading-tight line-clamp-2 text-white">${item.name}</span>
+                            <button onclick="removeFromSequence(${index})" class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center font-bold shadow-md z-20">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function addToSequence(id) {
+            state.sequence.push(id);
+            renderPPE();
+        }
+
+        function removeFromSequence(index) {
+            state.sequence.splice(index, 1);
+            renderPPE();
+        }
+
+        function validateSequence() {
+            const isDonning = state.phase === 'DONNING';
+            const correctOrder = isDonning ? CORRECT_DONNING_ORDER : CORRECT_DOFFING_ORDER;
+            
+            // Check equality
+            const isCorrect = state.sequence.length === correctOrder.length && 
+                              state.sequence.every((val, index) => val === correctOrder[index]);
+
+            showFeedback(true); // Loading
+
+            setTimeout(() => {
+                if (isCorrect) {
+                    const msg = isDonning 
+                        ? "Paramentação Correta!\n\nVocê seguiu a ordem ideal para proteção." 
+                        : "Desparamentação Correta!\n\nVocê removeu os itens contaminados com segurança.";
+                    
+                    showFeedback(false, 'success', msg, "Continuar", () => {
+                         if (isDonning) setPhase('INSPECTION');
+                         else setPhase('SUMMARY');
+                    });
+                } else {
+                    const gabaritoNames = correctOrder.map(id => PPE_ITEMS[id].name).join('\n↓\n');
+                    const msg = `Sequência Incorreta.\n\nA ordem dos EPIs é crucial para a segurança.`;
+                    
+                    showFeedback(false, 'error', msg, "Ver Gabarito", () => {
+                         showFeedback(false, 'info', `Gabarito (Ordem Correta):\n\n${gabaritoNames}`, "Continuar", () => {
+                             // Reset sequence to allow retry or move on? 
+                             // Logic: Move on after showing answer
+                             if (isDonning) setPhase('INSPECTION');
+                             else setPhase('SUMMARY');
+                         });
+                    });
+                }
+            }, 600);
+        }
+
+        // --- 3D INSPECTION LOGIC (A-FRAME) ---
+        function startGameInspection() {
+            els.inspectionModal.classList.add('hidden');
+            els.skipInspectionBtn.classList.remove('hidden');
+        }
+
+        function finishInspection() {
+            setPhase('DOFFING');
+        }
+
+        // GLOBAL FUNCTION FOR A-FRAME CLICKS
+        window.handleInspect = function(itemId) {
+            console.log("Item clicked:", itemId); // Debug
+            
+            const item = GALLERY_ITEMS.find(i => i.id === itemId);
+            if (!item) return;
+
+            // Prevent double clicking found items
+            if (state.foundHazards.includes(itemId)) return;
+
+            if (item.type === 'safe') {
+                showFeedback(false, 'error', `Item Seguro.\n\n${item.description}\n\nProcure por riscos reais.`, "Continuar");
+            } else {
+                state.foundHazards.push(itemId);
+                
+                // Visual Update in A-Frame
+                const entity = document.querySelector(`#frame-${itemId}`);
+                if (entity) entity.setAttribute('color', '#ef4444');
+                
+                const textEnt = document.querySelector(`#text-${itemId}`);
+                if (textEnt) {
+                    textEnt.setAttribute('value', 'RISCO DETECTADO');
+                    textEnt.setAttribute('color', '#ef4444');
+                }
+
+                const totalHazards = GALLERY_ITEMS.filter(i => i.type === 'hazard').length;
+                const foundCount = state.foundHazards.length;
+
+                showFeedback(false, 'success', `Risco Identificado!\n\n${item.description}`, "Continuar", () => {
+                    if (foundCount === totalHazards) {
+                         setTimeout(() => {
+                             showFeedback(false, 'info', "Parabéns! Você encontrou todos os riscos.\n\nVamos para a Desparamentação.", "Avançar", () => {
+                                 finishInspection();
+                             });
+                         }, 300);
+                    }
+                });
+            }
+        };
+
+        function getRotationToCenter(posStr) {
+            const [x, y, z] = posStr.split(' ').map(Number);
+            const angleRad = Math.atan2(x, z);
+            const angleDeg = angleRad * (180 / Math.PI);
+            return `0 ${angleDeg + 180} 0`;
+        }
+
+        function initAFrame() {
+            if (els.aframeContainer.innerHTML.trim() !== "") return; // Already loaded
+
+            let framesHTML = GALLERY_ITEMS.map(item => {
+                const rot = getRotationToCenter(item.position);
+                const w = item.width || 1;
+                const h = item.height || 1;
+                return `
+                    <a-entity position="${item.position}" rotation="${rot}" 
+                              class="clickable"
+                              onclick="window.handleInspect('${item.id}')">
+                        <a-cylinder position="0 -0.5 0" radius="0.1" height="1" color="#334155" material="metalness: 0.4; roughness: 0.3"></a-cylinder>
+                        <a-entity position="0 0.5 0">
+                            <a-plane id="frame-${item.id}" width="${w+0.1}" height="${h+0.1}" color="#ffffff" position="0 0 0" class="clickable"></a-plane>
+                            <a-image src="${item.imageUrl}" width="${w}" height="${h}" position="0 0 0.02" class="clickable"></a-image>
+                            <a-text id="text-${item.id}" value="" align="center" position="0 ${h/2 + 0.2} 0" width="4" color="transparent" font="exo2bold"></a-text>
+                        </a-entity>
+                    </a-entity>
+                `;
+            }).join('');
+
+            els.aframeContainer.innerHTML = `
+                <a-scene embedded vr-mode-ui="enabled: false" 
+                         cursor="rayOrigin: mouse" 
+                         raycaster="objects: .clickable" 
+                         renderer="antialias: true; colorManagement: true;"
+                         style="width: 100%; height: 100%;">
+                    
+                    <a-assets></a-assets>
+
+                    <!-- Room -->
+                    <a-plane position="0 0 0" rotation="-90 0 0" width="12" height="12" color="#e2e8f0"></a-plane>
+                    <a-plane position="0 4 0" rotation="90 0 0" width="12" height="12" color="#f8fafc"></a-plane>
+                    <a-plane position="0 2 -6" width="12" height="4" color="#cbd5e1"></a-plane>
+                    <a-plane position="0 2 6" rotation="0 180 0" width="12" height="4" color="#cbd5e1"></a-plane>
+                    <a-plane position="-6 2 0" rotation="0 90 0" width="12" height="4" color="#94a3b8"></a-plane>
+                    <a-plane position="6 2 0" rotation="0 -90 0" width="12" height="4" color="#94a3b8"></a-plane>
+                    
+                    <a-light type="ambient" color="#BBB"></a-light>
+                    <a-light type="point" intensity="0.6" position="0 3.5 0"></a-light>
+
+                    <!-- Camera Rig -->
+                    <a-camera id="main-camera" position="0 1.6 0" 
+                              wasd-controls="enabled: false" 
+                              look-controls="enabled: true; reverseMouseDrag: true; touchEnabled: true;">
+                    </a-camera>
+
+                    <!-- Instruction Board -->
+                    <a-entity position="0 2.5 -5.9">
+                         <a-box width="5" height="1.5" depth="0.1" color="#1e293b"></a-box>
+                         <a-text value="GALERIA DE BIOSSEGURANCA" align="center" position="0 0.4 0.06" color="#fbbf24" width="6" font="exo2bold"></a-text>
+                         <a-text value="Use o Joystick para andar\nToque nos quadros para inspecionar" align="center" position="0 -0.2 0.06" color="#e2e8f0" width="4"></a-text>
+                    </a-entity>
+
+                    ${framesHTML}
+                </a-scene>
+            `;
+            
+            setupJoystick();
+        }
+
+        // --- JOYSTICK LOGIC ---
+        let joystickActive = false;
+        let animationFrameId = null;
+        let moveVector = { x: 0, y: 0 };
+        const joyZone = els.joystick.zone;
+        const joyHandle = els.joystick.handle;
+
+        function setupJoystick() {
+            // Touch
+            joyZone.addEventListener('touchstart', (e) => { e.preventDefault(); handleStart(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+            joyZone.addEventListener('touchmove', (e) => { if(joystickActive) { e.preventDefault(); handleMove(e.touches[0].clientX, e.touches[0].clientY); } }, {passive: false});
+            joyZone.addEventListener('touchend', handleEnd);
+            
+            // Mouse
+            joyZone.addEventListener('mousedown', (e) => { e.preventDefault(); handleStart(e.clientX, e.clientY); });
+            document.addEventListener('mousemove', (e) => { if(joystickActive) { e.preventDefault(); handleMove(e.clientX, e.clientY); } });
+            document.addEventListener('mouseup', handleEnd);
+        }
+
+        function handleStart(cx, cy) {
+            joystickActive = true;
+            updateJoystick(cx, cy);
+            loopMovement();
+        }
+
+        function handleMove(cx, cy) {
+            if (!joystickActive) return;
+            updateJoystick(cx, cy);
+        }
+
+        function handleEnd() {
+            joystickActive = false;
+            moveVector = { x: 0, y: 0 };
+            joyHandle.style.transform = `translate(0px, 0px)`;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        }
+
+        function updateJoystick(cx, cy) {
+            const rect = joyZone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            let dx = cx - centerX;
+            let dy = cy - centerY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            const maxR = rect.width / 2;
+
+            if (dist > maxR) {
+                const angle = Math.atan2(dy, dx);
+                dx = Math.cos(angle) * maxR;
+                dy = Math.sin(angle) * maxR;
+            }
+
+            joyHandle.style.transform = `translate(${dx}px, ${dy}px)`;
+            moveVector = { x: dx / maxR, y: dy / maxR };
+        }
+
+        function loopMovement() {
+            if (!joystickActive) return;
+
+            const cameraEl = document.querySelector('#main-camera');
+            if (cameraEl && cameraEl.object3D) {
+                const speed = 0.10;
+                // Move based on rotation
+                cameraEl.object3D.translateZ(moveVector.y * speed);
+                cameraEl.object3D.translateX(moveVector.x * speed);
+
+                // Floor Constrain
+                cameraEl.object3D.position.y = 1.6;
+                
+                // Wall Constrain
+                const limit = 5.5;
+                if (cameraEl.object3D.position.x > limit) cameraEl.object3D.position.x = limit;
+                if (cameraEl.object3D.position.x < -limit) cameraEl.object3D.position.x = -limit;
+                if (cameraEl.object3D.position.z > limit) cameraEl.object3D.position.z = limit;
+                if (cameraEl.object3D.position.z < -limit) cameraEl.object3D.position.z = -limit;
+            }
+
+            animationFrameId = requestAnimationFrame(loopMovement);
+        }
+
+        // --- FEEDBACK SYSTEM ---
+        function showFeedback(isLoading, type = 'info', message = '', btnLabel = 'Continuar', actionCallback = null) {
+            els.feedback.modal.classList.remove('hidden');
+            
+            if (isLoading) {
+                els.feedback.loading.classList.remove('hidden');
+                els.feedback.content.classList.add('hidden');
+                return;
+            }
+
+            els.feedback.loading.classList.add('hidden');
+            els.feedback.content.classList.remove('hidden');
+            
+            // Colors
+            els.feedback.box.className = `max-w-md w-full p-6 rounded-xl border-2 shadow-2xl text-white relative ${type === 'success' ? 'bg-green-900/95 border-green-500' : type === 'error' ? 'bg-red-900/95 border-red-500' : 'bg-blue-900/95 border-blue-500'}`;
+
+            // Text
+            els.feedback.title.innerText = type === 'error' ? '⚠️ Atenção' : type === 'success' ? '✅ Correto' : 'ℹ️ Info';
+            els.feedback.message.innerText = message;
+            els.feedback.btn.innerText = btnLabel;
+
+            // Store the callback for the button click
+            state.pendingAction = actionCallback;
+        }
+
+        els.feedback.btn.onclick = () => {
+            els.feedback.modal.classList.add('hidden');
+            if (state.pendingAction) {
+                const action = state.pendingAction;
+                state.pendingAction = null; // Clear it immediately
+                action(); // Execute
+            }
+        };
+
+        // --- INIT ---
+        setPhase('INTRO');
+
+    </script>
+</body>
+</html>
