@@ -98,6 +98,22 @@
           pointer-events: none;
           background: rgba(30, 41, 59, 0.3);
       }
+      #emergency-sequence-container:empty::after {
+          content: 'Arraste os itens aqui';
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          min-height: 200px;
+          color: #94a3b8;
+          font-weight: 600;
+          font-size: 0.875rem;
+          border: 2px dashed #475569;
+          border-radius: 0.75rem;
+          pointer-events: none;
+          background: rgba(30, 41, 59, 0.3);
+      }
     </style>
 <script type="importmap">
 {
@@ -118,6 +134,12 @@
         <div>
             <h1 class="text-lg md:text-xl font-bold tracking-tighter text-blue-400 whitespace-nowrap">BIO<span class="text-white">SAFETY</span> VR</h1>
             <p id="mode-indicator" class="text-[10px] md:text-xs text-slate-400 font-mono uppercase tracking-wide">Modo: Inicio</p>
+        </div>
+        <!-- NOVO: Indicador de Pontuação -->
+        <div id="score-display" class="flex items-center gap-1.5 bg-blue-900/40 border border-blue-500/40 px-3 py-1.5 rounded-full shrink-0 mx-2">
+            <span class="text-base">⭐</span>
+            <span id="score-value" class="font-bold text-sm md:text-base text-yellow-300 font-mono">0</span>
+            <span class="text-[10px] md:text-xs text-slate-300 hidden sm:inline">pts</span>
         </div>
         <!-- Reset Button -->
         <button onclick="window.location.reload()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded border border-white/20 transition-colors">
@@ -274,12 +296,91 @@
             </div>
         </section>
 
+        <!-- EMERGENCY RESPONSE SCREEN (NOVO) -->
+        <section id="screen-emergency" class="hidden absolute inset-0 flex flex-col p-2 md:p-4 gap-2 md:gap-4 max-w-6xl mx-auto w-full h-full overflow-hidden">
+            <div class="bg-red-900/40 p-2 md:p-4 rounded-xl border border-red-500/40 shadow-lg shrink-0 z-10">
+                <h2 class="text-base md:text-2xl font-bold text-white leading-tight">⚠️ Resposta a Emergência: Derramamento Biológico</h2>
+                <p class="text-[10px] md:text-sm text-slate-300">
+                    Você identificou um derramamento. Monte a sequência correta de resposta.
+                </p>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-2 md:gap-4 flex-1 min-h-0 pb-2">
+                <div class="order-1 lg:order-2 lg:w-2/3 flex flex-col flex-1 min-h-0">
+                    <div class="bg-slate-800/50 flex-1 rounded-xl border-2 border-dashed border-slate-600 p-2 md:p-4 relative flex flex-col min-h-0 overflow-hidden">
+                        <h3 class="text-[10px] md:text-sm font-semibold text-white mb-1 flex justify-between items-center shrink-0">
+                            <span>Sua Sequência (Arraste para reordenar)</span>
+                            <span id="emergency-sequence-count" class="bg-slate-700 px-2 py-0.5 rounded text-slate-300">0 passos</span>
+                        </h3>
+                        <div id="emergency-sequence-container" class="flex-1 flex flex-row flex-wrap gap-2 content-start overflow-y-auto no-scrollbar p-1 min-h-[250px] w-full"></div>
+                    </div>
+                    <div class="mt-2 shrink-0">
+                        <button id="emergency-validate-btn" onclick="validateEmergencySequence()" disabled class="w-full py-2.5 md:py-4 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-lg transition-all">
+                        Verificar Sequência
+                    </button>
+                    </div>
+                </div>
+
+                <div class="order-2 lg:order-1 lg:w-1/3 bg-slate-800/80 p-2 md:p-4 rounded-xl border border-slate-700 shrink-0 lg:flex-1 overflow-y-auto no-scrollbar">
+                    <h3 class="text-[10px] md:text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1 border-b border-slate-700 pb-1 shrink-0">Ações (Arraste)</h3>
+                    <div id="emergency-available-items" class="grid grid-cols-3 gap-1.5"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- WASTE DISPOSAL SCREEN (NOVO) -->
+        <section id="screen-waste" class="hidden absolute inset-0 flex flex-col p-2 md:p-4 gap-2 md:gap-4 max-w-6xl mx-auto w-full h-full overflow-hidden">
+            <div class="bg-slate-800/90 p-2 md:p-4 rounded-xl border border-slate-600 shadow-lg shrink-0 z-10">
+                <h2 class="text-base md:text-2xl font-bold text-white leading-tight">♻️ Descarte Seguro de Resíduos</h2>
+                <p class="text-[10px] md:text-sm text-slate-300">Arraste cada resíduo para a lixeira correta, conforme o risco biológico.</p>
+            </div>
+
+            <div class="flex-1 min-h-0 flex flex-col gap-2 overflow-y-auto no-scrollbar pb-2">
+                <div class="bg-slate-800/80 p-2 md:p-3 rounded-xl border border-slate-700 shrink-0">
+                    <h3 class="text-[10px] md:text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Resíduos (Arraste)</h3>
+                    <div id="waste-pool" class="grid grid-cols-3 md:grid-cols-6 gap-1.5 min-h-[90px]"></div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 flex-1">
+                    <div class="bg-slate-700 rounded-xl border-2 border-dashed border-slate-500 p-2 flex flex-col">
+                        <p class="text-[10px] md:text-xs font-bold text-white mb-1 text-center">🗑️ Comum</p>
+                        <div id="waste-bin-comum" class="flex-1 flex flex-wrap gap-1 content-start min-h-[80px]"></div>
+                    </div>
+                    <div class="bg-red-900/40 rounded-xl border-2 border-dashed border-red-500/50 p-2 flex flex-col">
+                        <p class="text-[10px] md:text-xs font-bold text-red-200 mb-1 text-center">☣️ Infectante</p>
+                        <div id="waste-bin-infectante" class="flex-1 flex flex-wrap gap-1 content-start min-h-[80px]"></div>
+                    </div>
+                    <div class="bg-yellow-900/40 rounded-xl border-2 border-dashed border-yellow-500/50 p-2 flex flex-col">
+                        <p class="text-[10px] md:text-xs font-bold text-yellow-200 mb-1 text-center">⚠️ Perfurocortante</p>
+                        <div id="waste-bin-perfurocortante" class="flex-1 flex flex-wrap gap-1 content-start min-h-[80px]"></div>
+                    </div>
+                    <div class="bg-blue-900/40 rounded-xl border-2 border-dashed border-blue-500/50 p-2 flex flex-col">
+                        <p class="text-[10px] md:text-xs font-bold text-blue-200 mb-1 text-center">♻️ Reciclável</p>
+                        <div id="waste-bin-reciclavel" class="flex-1 flex flex-wrap gap-1 content-start min-h-[80px]"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shrink-0 flex items-center gap-2">
+                <span id="waste-count" class="bg-slate-700 px-3 py-2 rounded-lg text-xs md:text-sm text-slate-300 font-mono shrink-0">0/6</span>
+                <button id="waste-next-btn" onclick="setPhase('SUMMARY')" disabled class="flex-1 py-2.5 md:py-4 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-lg transition-all">
+                    Concluir Treinamento
+                </button>
+            </div>
+        </section>
+
         <!-- SUMMARY SCREEN -->
         <section id="screen-summary" class="hidden absolute inset-0 overflow-y-auto flex flex-col items-center justify-center p-6 text-center animate-fade-in pb-20">
             <h2 class="text-3xl md:text-5xl font-bold mb-6 text-green-400">Treinamento Concluído!</h2>
             <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl mb-8 w-full max-w-md">
                 <p class="text-slate-400 mb-2">Parabéns!</p>
                 <p class="text-xl text-white mb-6">Você completou todas as etapas do treinamento com sucesso.</p>
+
+                <!-- NOVO: Caixa de pontuação final -->
+                <div class="bg-blue-900/40 border border-blue-500/40 rounded-xl p-4 mb-6">
+                    <p class="text-xs uppercase tracking-wide text-blue-300 mb-1">Pontuação Final</p>
+                    <p id="final-score-value" class="text-4xl font-bold text-yellow-300">0</p>
+                </div>
                 
                 <div class="border-t border-slate-600 pt-6">
                     <p class="text-slate-300 text-sm mb-4">
@@ -315,6 +416,29 @@
         const CORRECT_DONNING_ORDER = ['alcohol', 'jaleco', 'mascara', 'touca', 'oculos', 'alcohol', 'luvas'];
         const CORRECT_DOFFING_ORDER = ['luvas', 'alcohol', 'jaleco', 'touca', 'oculos', 'alcohol', 'mascara', 'alcohol'];
 
+        // NOVO: itens e ordem correta da etapa de Resposta a Emergência
+        const EMERGENCY_ITEMS = {
+            isolar:      { id: 'isolar',      name: 'Isolar a área',                icon: '🚧' },
+            avisar:      { id: 'avisar',      name: 'Avisar responsável',           icon: '📢' },
+            epi_extra:   { id: 'epi_extra',   name: 'Vestir EPI de contenção',      icon: '🧤' },
+            conter:      { id: 'conter',      name: 'Conter com absorvente',        icon: '🧽' },
+            desinfetar:  { id: 'desinfetar',  name: 'Desinfetar a área',            icon: '🧪' },
+            descartar:   { id: 'descartar',   name: 'Descartar material contaminado', icon: '🗑️' },
+            higienizar:  { id: 'higienizar',  name: 'Higienizar as mãos',           icon: '🧴' },
+        };
+        const CORRECT_EMERGENCY_ORDER = ['isolar', 'avisar', 'epi_extra', 'conter', 'desinfetar', 'descartar', 'higienizar'];
+
+        // NOVO: itens e lixeiras da etapa de Descarte de Resíduos
+        const WASTE_ITEMS = [
+            { id: 'agulha',     name: 'Agulha usada',                icon: '💉', correctBin: 'perfurocortante' },
+            { id: 'luva',       name: 'Luva contaminada',            icon: '🧤', correctBin: 'infectante' },
+            { id: 'papel',      name: 'Papel toalha limpo',          icon: '🧻', correctBin: 'comum' },
+            { id: 'vidro',      name: 'Vidro quebrado contaminado',  icon: '🔬', correctBin: 'perfurocortante' },
+            { id: 'embalagem',  name: 'Embalagem plástica limpa',    icon: '📦', correctBin: 'reciclavel' },
+            { id: 'gaze',       name: 'Gaze com sangue',             icon: '🩹', correctBin: 'infectante' },
+        ];
+        const WASTE_BINS = ['comum', 'infectante', 'perfurocortante', 'reciclavel'];
+
         const GALLERY_ITEMS = [
             { 
                 id: 'mouth_pipetting', position: '-3 1.2 -3', type: 'hazard',
@@ -324,17 +448,17 @@
             { 
                 id: 'uncapped_needle', position: '3 1.2 -2', type: 'hazard',
                 description: 'Descarte incorreto: Agulhas devem ir para o coletor rígido (Descarpack) imediatamente.',
-                imageUrl: 'https://raw.githubusercontent.com/GabrielC-4lmeida/Image00/refs/heads/main/IMG-20260209-WA0003.jpg', width: 2, height: 1.5
+                imageUrl: 'https://lh3.googleusercontent.com/gg/AMW1TPqSjlPb1TS66VKD8ZcxMiuClZBZwLKPKpJ437C1ecpBLCgFUHA744u-aAZMscRJqizq9Oae56HfusBtm02iN_PZmBfdoQoXEQ4bhsDwtEf1V3Fn9HUKIQ-zAvRJKk_RZsEqdSLveJj2hYKPWG-Rt4qF4kTG0jtY8bl4LTojDicq2A9G6aKN=s1024-rj-mp2', width: 2, height: 1.5
             },
             { 
                 id: 'spill_floor', position: '-2 0.8 2', type: 'hazard',
                 description: 'Derramamento no chão: Risco de queda e contaminação. Deve ser isolado e limpo imediatamente.',
-                imageUrl: 'https://raw.githubusercontent.com/GabrielC-4lmeida/Image00/refs/heads/main/IMG-20260209-WA0004.jpg', width: 2.2, height: 1.4
+                imageUrl: 'https://lh3.googleusercontent.com/gg/AMW1TPqNprDTCKtEhInQ00wWCduXkCeDm9uL53pV4Lyz04o1n9-ukJgm1fBpYnna3MqH_Jdum1l2gKALMhrBdrAoAg_HPz3AFqCa3ydqvdBIIwo1H4FbJD2qhMoo1dF9eL5DDK9ykR7Iz6x6ltJ2EVEXzmz7LQRUvYRmM4x4oNAdvn1n8X_lZQJf=s1024-rj-mp2', width: 2.2, height: 1.4
             },
             { 
                 id: 'food_lab', position: '0 1.2 4', type: 'hazard',
                 description: 'Alimento no laboratório: Proibido comer ou beber para evitar contaminação cruzada.',
-                imageUrl: 'https://raw.githubusercontent.com/GabrielC-4lmeida/Image00/refs/heads/main/IMG-20260209-WA0002.jpg', width: 2, height: 1.5
+                imageUrl: 'https://lh3.googleusercontent.com/gg/AMW1TPoD3EYn_Mw4KGnRT_WXiT2bw7JzCsOOkQ4uBEr5nkCe0UdYCP8xV2R0wIv3bmtmO6vWtfZYmIj3qJOXT6f-v1oSIjj__00SXzXheVcZsS0FVsfPN6vmld8U7kvl_qamgAz2DmLXgD2vA_udTKbZ05ll7S2u6kCXD_lZ0vmrcYfQqxR_3_mT=s1024-rj-mp2', width: 2, height: 1.5
             },
             { 
                 id: 'labeled_bottle', position: '2 1.2 2', type: 'safe',
@@ -358,7 +482,10 @@
             phase: 'INTRO',
             sequence: [],
             foundHazards: [],
-            pendingAction: null
+            pendingAction: null,
+            score: 0,
+            wasteScored: new Set(),
+            emergencySequence: []
         };
 
         // --- DOM ELEMENTS ---
@@ -367,6 +494,8 @@
                 intro: document.getElementById('screen-intro'),
                 ppe: document.getElementById('screen-ppe'),
                 inspection: document.getElementById('screen-inspection'),
+                emergency: document.getElementById('screen-emergency'),
+                waste: document.getElementById('screen-waste'),
                 summary: document.getElementById('screen-summary'),
             },
             main: document.getElementById('main-container'),
@@ -376,6 +505,14 @@
             sequenceCount: document.getElementById('sequence-count'),
             availableItems: document.getElementById('available-items'),
             validateBtn: document.getElementById('validate-btn'),
+            scoreValue: document.getElementById('score-value'),
+            emergencySequenceContainer: document.getElementById('emergency-sequence-container'),
+            emergencySequenceCount: document.getElementById('emergency-sequence-count'),
+            emergencyAvailableItems: document.getElementById('emergency-available-items'),
+            emergencyValidateBtn: document.getElementById('emergency-validate-btn'),
+            wastePool: document.getElementById('waste-pool'),
+            wasteCount: document.getElementById('waste-count'),
+            wasteNextBtn: document.getElementById('waste-next-btn'),
             feedback: {
                 modal: document.getElementById('feedback-modal'),
                 box: document.getElementById('feedback-box'),
@@ -392,6 +529,14 @@
             },
             aframeContainer: document.getElementById('aframe-container')
         };
+
+        // --- SISTEMA DE PONTUAÇÃO (NOVO) ---
+        function addScore(points) {
+            state.score += points;
+            if (els.scoreValue) {
+                els.scoreValue.innerText = state.score;
+            }
+        }
 
         // --- DRAG AND DROP INITIALIZATION ---
         let sortableAvailable = null;
@@ -480,9 +625,18 @@
                 els.screens.inspection.classList.remove('hidden');
                 els.inspectionModal.classList.remove('hidden'); 
                 initAFrame();
+            } else if (phase === 'EMERGENCY') {
+                modeText = 'Resposta a Emergência';
+                els.screens.emergency.classList.remove('hidden');
+                renderEmergency();
+            } else if (phase === 'WASTE') {
+                modeText = 'Descarte de Resíduos';
+                els.screens.waste.classList.remove('hidden');
+                renderWaste();
             } else if (phase === 'SUMMARY') {
                 modeText = 'Conclusão';
                 els.screens.summary.classList.remove('hidden');
+                document.getElementById('final-score-value').innerText = state.score;
             } else {
                 els.screens.intro.classList.remove('hidden');
             }
@@ -552,13 +706,14 @@
 
             setTimeout(() => {
                 if (isCorrect) {
+                    addScore(100);
                     const msg = isDonning 
                         ? "Paramentação Correta!\n\nVocê seguiu a ordem ideal para proteção." 
                         : "Desparamentação Correta!\n\nVocê removeu os itens contaminados com segurança.";
                     
                     showFeedback(false, 'donning_success', msg, "Continuar", () => {
                          if (isDonning) setPhase('INSPECTION');
-                         else setPhase('SUMMARY');
+                         else setPhase('WASTE');
                     });
                 } else {
                     const gabaritoNames = correctOrder.map(id => PPE_ITEMS[id].name).join('\n↓\n');
@@ -566,10 +721,8 @@
                     
                     showFeedback(false, 'error', msg, "Ver Gabarito", () => {
                          showFeedback(false, 'info', `Gabarito (Ordem Correta):\n\n${gabaritoNames}`, "Continuar", () => {
-                             // Reset sequence to allow retry or move on? 
-                             // Logic: Move on after showing answer
                              if (isDonning) setPhase('INSPECTION');
-                             else setPhase('SUMMARY');
+                             else setPhase('WASTE');
                          });
                     });
                 }
@@ -581,8 +734,156 @@
             els.inspectionModal.classList.add('hidden');
         }
 
+        // --- EMERGENCY RESPONSE LOGIC (NOVO) ---
+        let sortableEmergencyAvailable = null;
+        let sortableEmergencySequence = null;
+
+        function renderEmergency() {
+            if (els.emergencyAvailableItems.children.length === 0) {
+                els.emergencyAvailableItems.innerHTML = Object.values(EMERGENCY_ITEMS).map(item => `
+                    <div data-id="${item.id}" class="flex flex-col items-center justify-center p-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg border border-slate-600 active:bg-red-800 transition-colors h-20 md:h-24 cursor-grab">
+                        <span class="text-2xl md:text-3xl mb-1 pointer-events-none">${item.icon}</span>
+                        <span class="text-[9px] md:text-xs font-bold text-slate-200 text-center leading-tight pointer-events-none">${item.name}</span>
+                    </div>
+                `).join('');
+            }
+
+            els.emergencySequenceCount.innerText = `${state.emergencySequence.length} passos`;
+            els.emergencyValidateBtn.disabled = state.emergencySequence.length === 0;
+
+            els.emergencySequenceContainer.innerHTML = state.emergencySequence.length === 0 ? '' :
+                state.emergencySequence.map((itemId, index) => {
+                    const item = EMERGENCY_ITEMS[itemId];
+                    return `
+                        <div data-id="${itemId}" class="relative group animate-fade-in mb-1 mr-1 cursor-grab">
+                            <div class="absolute -top-1.5 -left-1.5 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-[10px] shadow-md z-10 border-2 border-slate-800 pointer-events-none">${index + 1}</div>
+                            <div class="w-16 h-20 md:w-20 md:h-24 bg-slate-700 rounded-lg flex flex-col items-center justify-center p-1 border border-slate-500 shadow-sm relative pointer-events-none">
+                                <span class="text-xl md:text-2xl mb-1">${item.icon}</span>
+                                <span class="text-[8px] md:text-[10px] text-center leading-tight line-clamp-2 text-white">${item.name}</span>
+                            </div>
+                            <button onclick="removeFromEmergencySequence(${index})" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center font-bold shadow-md z-20 hover:bg-red-400 transition-colors text-xs">×</button>
+                        </div>
+                    `;
+                }).join('');
+
+            initEmergencySortable();
+        }
+
+        function removeFromEmergencySequence(index) {
+            state.emergencySequence.splice(index, 1);
+            renderEmergency();
+        }
+
+        function initEmergencySortable() {
+            if (sortableEmergencyAvailable) sortableEmergencyAvailable.destroy();
+            if (sortableEmergencySequence) sortableEmergencySequence.destroy();
+
+            const commonOptions = {
+                group: 'emergency', animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+                forceFallback: true, fallbackOnBody: true, fallbackTolerance: 5, emptyInsertThreshold: 50,
+                onStart: () => document.body.classList.add('grabbing'),
+                onEnd: () => document.body.classList.remove('grabbing')
+            };
+
+            sortableEmergencyAvailable = new Sortable(els.emergencyAvailableItems, {
+                ...commonOptions, group: { name: 'emergency', pull: 'clone', put: false }, sort: false
+            });
+
+            sortableEmergencySequence = new Sortable(els.emergencySequenceContainer, {
+                ...commonOptions,
+                onAdd: (evt) => {
+                    state.emergencySequence.splice(evt.newIndex, 0, evt.item.getAttribute('data-id'));
+                    renderEmergency();
+                },
+                onUpdate: (evt) => {
+                    const moved = state.emergencySequence.splice(evt.oldIndex, 1)[0];
+                    state.emergencySequence.splice(evt.newIndex, 0, moved);
+                    renderEmergency();
+                }
+            });
+        }
+
+        function validateEmergencySequence() {
+            const isCorrect = state.emergencySequence.length === CORRECT_EMERGENCY_ORDER.length &&
+                state.emergencySequence.every((val, i) => val === CORRECT_EMERGENCY_ORDER[i]);
+
+            showFeedback(true);
+            setTimeout(() => {
+                if (isCorrect) {
+                    addScore(80);
+                    showFeedback(false, 'donning_success', "Resposta Correta!\n\nVocê conteve o derramamento seguindo o protocolo de biossegurança.", "Continuar", () => setPhase('DOFFING'));
+                } else {
+                    const gabaritoNames = CORRECT_EMERGENCY_ORDER.map(id => EMERGENCY_ITEMS[id].name).join('\n↓\n');
+                    showFeedback(false, 'error', "Sequência Incorreta.\n\nResponder a um derramamento na ordem errada pode espalhar a contaminação.", "Ver Gabarito", () => {
+                        showFeedback(false, 'info', `Gabarito (Ordem Correta):\n\n${gabaritoNames}`, "Continuar", () => setPhase('DOFFING'));
+                    });
+                }
+            }, 600);
+        }
+
+        // --- WASTE DISPOSAL LOGIC (NOVO) ---
+        function renderWaste() {
+            if (els.wastePool.children.length === 0) {
+                els.wastePool.innerHTML = WASTE_ITEMS.map(item => `
+                    <div data-id="${item.id}" class="flex flex-col items-center justify-center p-2 bg-slate-700 hover:bg-slate-600 rounded-lg border border-slate-600 cursor-grab h-20 md:h-24">
+                        <span class="text-2xl mb-1 pointer-events-none">${item.icon}</span>
+                        <span class="text-[9px] md:text-xs font-bold text-slate-200 text-center leading-tight pointer-events-none">${item.name}</span>
+                    </div>
+                `).join('');
+            }
+            initWasteSortable();
+            syncWasteState();
+        }
+
+        function initWasteSortable() {
+            const commonOptions = {
+                group: 'waste', animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+                forceFallback: true, fallbackOnBody: true, fallbackTolerance: 5,
+                onStart: () => document.body.classList.add('grabbing'),
+                onEnd: () => document.body.classList.remove('grabbing')
+            };
+
+            new Sortable(els.wastePool, { ...commonOptions, sort: false });
+
+            WASTE_BINS.forEach(binId => {
+                const container = document.getElementById(`waste-bin-${binId}`);
+                new Sortable(container, { ...commonOptions, sort: false, onAdd: (evt) => onWasteDrop(evt, binId) });
+            });
+        }
+
+        function onWasteDrop(evt, binId) {
+            const itemId = evt.item.getAttribute('data-id');
+            const item = WASTE_ITEMS.find(i => i.id === itemId);
+            if (!item) return;
+
+            if (item.correctBin === binId) {
+                if (!state.wasteScored.has(itemId)) {
+                    state.wasteScored.add(itemId);
+                    addScore(40);
+                }
+            } else {
+                showFeedback(false, 'error', `Local incorreto!\n\n"${item.name}" não deve ir nesse descarte.\nPense no tipo de risco biológico desse resíduo.`, "Entendi");
+            }
+            syncWasteState();
+        }
+
+        function syncWasteState() {
+            let correctCount = 0;
+            WASTE_BINS.forEach(binId => {
+                const container = document.getElementById(`waste-bin-${binId}`);
+                Array.from(container.children).forEach(el => {
+                    const item = WASTE_ITEMS.find(i => i.id === el.getAttribute('data-id'));
+                    if (!item) return;
+                    if (item.correctBin === binId) { el.classList.add('ring-2', 'ring-green-400'); correctCount++; }
+                    else { el.classList.remove('ring-2', 'ring-green-400'); }
+                });
+            });
+            els.wasteCount.innerText = `${correctCount}/${WASTE_ITEMS.length}`;
+            els.wasteNextBtn.disabled = correctCount < WASTE_ITEMS.length;
+        }
+
         function finishInspection() {
-            setPhase('DOFFING');
+            setPhase('EMERGENCY');
         }
 
         // GLOBAL FUNCTION FOR A-FRAME CLICKS
@@ -609,6 +910,7 @@
                 showFeedback(false, 'safe_item', `Item Seguro.\n\n${item.description}\n\nProcure por riscos reais.`, "Continuar");
             } else {
                 state.foundHazards.push(itemId);
+                addScore(50);
                 
                 // Visual Update in A-Frame
                 const entity = document.querySelector(`#frame-${itemId}`);
@@ -850,6 +1152,5 @@
         setPhase('INTRO');
 
     </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
